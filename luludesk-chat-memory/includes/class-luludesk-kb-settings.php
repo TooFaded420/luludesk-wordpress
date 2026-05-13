@@ -175,6 +175,14 @@ class LuluDesk_KB_Settings {
 		$kb_source_id    = is_array( $data ) && isset( $data['kb_source_id'] ) ? sanitize_text_field( $data['kb_source_id'] ) : '';
 		$plugin_config_url = is_array( $data ) && isset( $data['plugin_config_url'] ) ? esc_url_raw( $data['plugin_config_url'] ) : '';
 
+		if ( empty( $wp_api_key ) || empty( $kb_source_id ) ) {
+			wp_send_json_error(
+				array( 'message' => __( 'LuluDesk returned an invalid response. Please try again or contact support.', 'luludesk-chat-memory' ) ),
+				500
+			);
+			return;
+		}
+
 		update_option( 'luludesk_wp_api_key', $wp_api_key );
 		update_option( 'luludesk_kb_source_id', $kb_source_id );
 		update_option( 'luludesk_kb_connected_at', time() );
@@ -208,13 +216,22 @@ class LuluDesk_KB_Settings {
 			wp_send_json_error( array( 'message' => 'Not connected to LuluDesk Knowledge Base.' ) );
 		}
 
-		$payload  = array( 'kb_source_id' => $kb_source_id );
+		$wp_api_key = get_option( 'luludesk_wp_api_key', '' );
+		$webhook    = new LuluDesk_Webhook( $wp_api_key, $kb_source_id );
+		$timestamp  = time();
+		$body_json  = wp_json_encode( array( 'kb_source_id' => $kb_source_id ) );
+		$signature  = $webhook->sign( $timestamp, $body_json );
+
 		$response = wp_remote_post(
 			self::FULL_SYNC_ENDPOINT,
 			array(
-				'timeout' => 60,  // Full syncs can take a while.
-				'headers' => array( 'Content-Type' => 'application/json' ),
-				'body'    => wp_json_encode( $payload ),
+				'timeout' => 30,
+				'headers' => array(
+					'Content-Type'           => 'application/json',
+					'X-LuluDesk-Signature'   => $signature,
+					'X-LuluDesk-Timestamp'   => (string) $timestamp,
+				),
+				'body'    => $body_json,
 			)
 		);
 
@@ -327,10 +344,13 @@ class LuluDesk_KB_Settings {
 			<div class="notice notice-success inline" style="padding:8px 12px;margin-bottom:16px;">
 				<p>
 					<?php
-					printf(
-						/* translators: %s: site URL */
-						esc_html__( 'Connected to LuluDesk Knowledge Base. Source ID: %s', 'luludesk-chat-memory' ),
-						'<code>' . esc_html( $kb_source_id ) . '</code>'
+					echo wp_kses(
+						sprintf(
+							/* translators: %s: KB source ID */
+							__( 'Connected to LuluDesk Knowledge Base. Source ID: %s', 'luludesk-chat-memory' ),
+							'<code>' . esc_html( $kb_source_id ) . '</code>'
+						),
+						array( 'code' => array() )
 					);
 					?>
 				</p>
