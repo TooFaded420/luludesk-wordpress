@@ -272,6 +272,7 @@ class LuluDesk_Settings {
 			return;
 		endif;
 		// Widget tab continues below…
+		?>
 
 			<form method="post" action="options.php">
 				<?php settings_fields( 'luludesk_settings_group' ); ?>
