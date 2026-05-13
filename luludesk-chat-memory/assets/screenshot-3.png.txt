@@ -1,0 +1,2 @@
+TODO: Screenshot 3 — Widget visible on the live site.
+Caption: "The LuluDesk chat launcher button in the bottom-right corner of a WordPress site."

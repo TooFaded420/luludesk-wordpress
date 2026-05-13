@@ -1,0 +1,2 @@
+TODO: Screenshot 4 — Chat open with memory context.
+Caption: "Chat widget open, showing a returning visitor conversation with memory context."

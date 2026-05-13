@@ -1,0 +1,36 @@
+# WordPress core (if this repo is placed inside a WP install for local dev)
+/wp-admin/
+/wp-includes/
+/wp-content/uploads/
+wp-config.php
+wp-config-sample.php
+.htaccess
+
+# Composer
+/vendor/
+composer.lock
+
+# Node (not used, but guard against accidental installs)
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+*.zip
+
+# phpcs cache
+.phpcs-cache
+phpcs.xml.bak
+
+# WP-CLI
+wp-cli.local.yml

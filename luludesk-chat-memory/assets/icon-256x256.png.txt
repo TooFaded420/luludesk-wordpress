@@ -1,0 +1,3 @@
+TODO: Replace this placeholder with an actual 256x256 PNG icon.
+Design spec: LuluDesk brand mark / chat bubble logo on a white or transparent background.
+WP.org requirements: PNG, 256x256 px.

@@ -1,0 +1,66 @@
+name: PHP Lint
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  php-lint:
+    name: PHP ${{ matrix.php-version }} syntax check
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: [ "7.4", "8.0", "8.2" ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          tools: none
+          coverage: none
+
+      - name: Run php -l on all PHP files
+        run: |
+          find luludesk-chat-memory -name "*.php" | while read file; do
+            php -l "$file" || exit 1
+          done
+          echo "All PHP files passed syntax check."
+
+  phpcs:
+    name: WordPress Coding Standards
+    runs-on: ubuntu-latest
+    # Runs on PHP 8.2 only — WPCS is a dev quality gate, not a blocker per PHP version.
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          tools: composer
+          coverage: none
+
+      - name: Install WPCS via Composer
+        run: |
+          composer require --dev \
+            wp-coding-standards/wpcs:"^3.0" \
+            phpcsstandards/phpcsutils:"^1.0" \
+            --no-interaction --no-progress
+          ./vendor/bin/phpcs --config-set installed_paths vendor/wp-coding-standards/wpcs
+
+      - name: Run PHPCS (WordPress standard)
+        run: |
+          ./vendor/bin/phpcs \
+            --standard=WordPress \
+            --extensions=php \
+            --ignore=vendor \
+            luludesk-chat-memory/

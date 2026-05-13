@@ -1,0 +1,3 @@
+TODO: Screenshot 1 — Settings page overview.
+Caption: "LuluDesk settings page in WP Admin → Settings → LuluDesk. Enter your install token and click Test Connection."
+Take this screenshot on a real WP 6.5 install after activation.
