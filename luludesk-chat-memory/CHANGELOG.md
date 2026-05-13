@@ -7,6 +7,21 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [1.1.0] — 2026-05-13
+
+### Added
+- Knowledge Base tab under WP Admin → Settings → LuluDesk → Knowledge Base
+- "Connect to LuluDesk Knowledge Base" button: POSTs to LuluDesk /connect, stores wp_api_key and kb_source_id as WP options
+- "Sync now" button: triggers full re-index via LuluDesk /full-sync endpoint
+- "Last sync: X ago" status block on KB settings tab
+- Post type checkboxes for configuring which content types are included in the KB sync
+- REST API accessibility check banner (warns when WP REST API appears disabled)
+- `save_post` webhook hook (priority 99): sends HMAC-SHA256 signed `post.saved` event to LuluDesk on every published post save (non-blocking, async via `wp_remote_post` with `blocking => false`)
+- `before_delete_post` webhook hook: sends `post.deleted` event when a previously-published post is deleted
+- `includes/class-luludesk-webhook.php`: HMAC-SHA256 signing helper class — signs `timestamp.body` payload with wp_api_key
+- `assets/kb-admin.js`: admin JS for KB tab (connect, sync, REST check)
+- Security note: wp_api_key stored as plain WP option (WP has no native encryption API; database-level encryption recommended for high-security environments)
+
 ## [1.0.0] — 2026-05-13
 
 ### Added

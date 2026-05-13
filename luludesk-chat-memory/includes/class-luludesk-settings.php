@@ -201,6 +201,14 @@ class LuluDesk_Settings {
 			return;
 		}
 
+		// Determine active tab — default to 'widget'.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$active_tab = isset( $_GET['luludesk_tab'] ) ? sanitize_key( $_GET['luludesk_tab'] ) : 'widget';
+		$allowed_tabs = array( 'widget', 'kb' );
+		if ( ! in_array( $active_tab, $allowed_tabs, true ) ) {
+			$active_tab = 'widget';
+		}
+
 		$token           = get_option( 'luludesk_install_token', '' );
 		$widget_enabled  = get_option( 'luludesk_widget_enabled', '1' );
 		$auto_inject     = get_option( 'luludesk_auto_inject', '1' );
@@ -231,7 +239,39 @@ class LuluDesk_Settings {
 				?>
 			</p>
 
+			<?php // Tab navigation. ?>
+			<nav class="nav-tab-wrapper" style="margin-bottom:16px;">
+				<a
+					href="<?php echo esc_url( admin_url( 'options-general.php?page=luludesk-settings&luludesk_tab=widget' ) ); ?>"
+					class="nav-tab <?php echo ( 'widget' === $active_tab ) ? 'nav-tab-active' : ''; ?>"
+				>
+					<?php esc_html_e( 'Widget', 'luludesk-chat-memory' ); ?>
+				</a>
+				<a
+					href="<?php echo esc_url( admin_url( 'options-general.php?page=luludesk-settings&luludesk_tab=kb' ) ); ?>"
+					class="nav-tab <?php echo ( 'kb' === $active_tab ) ? 'nav-tab-active' : ''; ?>"
+				>
+					<?php esc_html_e( 'Knowledge Base', 'luludesk-chat-memory' ); ?>
+				</a>
+			</nav>
+
 			<?php settings_errors(); ?>
+
+			<?php if ( 'kb' === $active_tab ) :
+				// Delegate to KB settings class.
+				if ( class_exists( 'LuluDesk_KB_Settings' ) ) {
+					$kb = new LuluDesk_KB_Settings();
+					$kb->render_kb_tab();
+				}
+				?>
+				<hr />
+				<h2><?php esc_html_e( 'Status', 'luludesk-chat-memory' ); ?></h2>
+				<p><?php printf( esc_html__( 'Plugin version: %s', 'luludesk-chat-memory' ), esc_html( LULUDESK_VERSION ) ); ?></p>
+			</div>
+			<?php
+			return;
+		endif;
+		// Widget tab continues below…
 
 			<form method="post" action="options.php">
 				<?php settings_fields( 'luludesk_settings_group' ); ?>
