@@ -3,7 +3,7 @@ Contributors: luludesk
 Tags: ai-chat, chatbot, ai-assistant, customer-support, knowledge-base
 Requires at least: 6.0
 Tested up to: 6.5
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -118,6 +118,13 @@ If you uncheck **Auto-inject in Footer**, the script tag is not added automatica
 
 == Changelog ==
 
+= 1.1.0 =
+* Knowledge Base tab: connect your WP site to LuluDesk KB, sync now button, last-sync status, post type selection.
+* Auto-sync on publish: `save_post` hook sends signed webhook to LuluDesk when you publish or update a post.
+* Auto-delete on trash: `before_delete_post` hook removes KB chunks when a published post is deleted.
+* HMAC-SHA256 webhook signing (class-luludesk-webhook.php) — replay-window protection.
+* Banner warning when WP REST API appears disabled (required for KB sync).
+
 = 1.0.0 =
 * Initial release.
 * Admin settings page: token input, Test Connection, page-targeting options.
@@ -126,6 +133,9 @@ If you uncheck **Auto-inject in Footer**, the script tag is not added automatica
 * Clean uninstall: removes all plugin options and cron events.
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+New Knowledge Base sync feature. No database changes required. After upgrading, visit Settings → LuluDesk → Knowledge Base to connect your site.
 
 = 1.0.0 =
 Initial release. No upgrade steps required.
