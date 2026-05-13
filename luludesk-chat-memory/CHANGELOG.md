@@ -7,6 +7,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [1.1.1] — 2026-05-13
+
+### Fixed
+- `readme.txt` External Services disclosure now lists all 5 endpoints and the exact data sent to each (WP.org P1 requirement).
+- HTML in translated strings (`printf()` with markup) refactored to use `wp_kses()` in `class-luludesk-settings.php` and `class-luludesk-kb-settings.php` (WP.org P1 scanner finding).
+- `mb_substr()` call in `luludesk-chat-memory.php` guarded with `function_exists()`, with `substr()` fallback for environments where mbstring is not installed.
+- Full-sync POST (`ajax_sync()`) is now HMAC-SHA256 signed using `LuluDesk_Webhook::sign()`, matching the webhook signing pattern.
+- Connect AJAX handler now validates that `wp_api_key` and `kb_source_id` are non-empty in the LuluDesk response before persisting them; returns HTTP 500 + error message if either is missing.
+
+### Added
+- `luludesk_render_widget()` function and `luludesk_render_widget` action hook for manual widget placement in custom themes.
+
 ## [1.1.0] — 2026-05-13
 
 ### Added

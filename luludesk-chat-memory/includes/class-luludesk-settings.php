@@ -231,10 +231,13 @@ class LuluDesk_Settings {
 
 			<p>
 				<?php
-				printf(
-					/* translators: %s: luluclaw.com link */
-					esc_html__( 'Get your install token from %s after signing up.', 'luludesk-chat-memory' ),
-					'<a href="https://luluclaw.com/app" target="_blank" rel="noopener noreferrer">luluclaw.com/app</a>'
+				echo wp_kses(
+					sprintf(
+						/* translators: %s: luluclaw.com link */
+						__( 'Get your install token from %s after signing up.', 'luludesk-chat-memory' ),
+						'<a href="' . esc_url( 'https://luluclaw.com/app' ) . '" target="_blank" rel="noopener noreferrer">luluclaw.com/app</a>'
+					),
+					array( 'a' => array( 'href' => true, 'target' => true, 'rel' => true ) )
 				);
 				?>
 			</p>

@@ -3,7 +3,7 @@ Contributors: luludesk
 Tags: ai-chat, chatbot, ai-assistant, customer-support, knowledge-base
 Requires at least: 6.0
 Tested up to: 6.5
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -28,7 +28,7 @@ That's it. No server setup, no build steps, no API keys to manage yourself.
 * **Memory across sessions** — the defining wedge. Your AI assistant knows who it's talking to.
 * **Zero-config** — one token, one save, done.
 * **Free tier available** — start for free; upgrade when you need more conversations or advanced knowledge-base features.
-* **Privacy-respecting** — this plugin does NOT send your WordPress user data, page content, or visitor PII to LuluDesk servers in v1. Only visitor chat messages reach LuluDesk. A daily plugin-health heartbeat sends version numbers only (no site URL, no personal data).
+* **Privacy-respecting** — this plugin sends data to LuluDesk's cloud service. See the 'External Services' section below for the complete list of endpoints and what is sent.
 * **Works with any theme** — pure `wp_footer` injection, no shortcodes required (though a manual shortcode path is on the roadmap).
 
 = Page targeting =
@@ -89,6 +89,8 @@ On WordPress.com, third-party plugins require the **Business plan** or higher. O
 * **Visitor chat messages** — sent directly from the visitor's browser to LuluDesk servers via the widget script. The plugin itself does not intercept or relay chat messages.
 * **Daily health heartbeat** — plugin version, WordPress version, PHP version, and two boolean flags (token set / widget enabled). No site URL, no IP address, no personal data.
 
+See the 'External Services' section for the complete list of all endpoints and what is transmitted.
+
 = Does it collect WordPress user data? =
 
 No. In v1 the plugin does not read, send, or expose any WordPress user profile data.
@@ -107,7 +109,7 @@ Yes. Log in to [luluclaw.com/app](https://luluclaw.com/app), go to your workspac
 
 = Can I place the widget manually? =
 
-If you uncheck **Auto-inject in Footer**, the script tag is not added automatically. You can then call `do_action('luludesk_render_widget')` inside your theme template to control placement precisely. (This hook is on the v1.1 roadmap.)
+If you uncheck **Auto-inject in Footer**, the script tag is not added automatically. You can then call `luludesk_render_widget()` or `do_action('luludesk_render_widget')` inside your theme template to control placement precisely.
 
 == Screenshots ==
 
@@ -116,7 +118,59 @@ If you uncheck **Auto-inject in Footer**, the script tag is not added automatica
 3. The chat launcher button in the bottom-right corner of a live WordPress site.
 4. Chat widget open, showing a returning visitor conversation with memory context.
 
+== External Services ==
+
+This plugin connects to LuluDesk's cloud service (https://luluclaw.com) for AI chat
+functionality. The following data is sent to LuluDesk's servers:
+
+1. **Widget script load** (`https://luluclaw.com/widget/v1/{install_token}.js`)
+   * What: A `<script>` tag is injected into your site footer on pages where the
+     widget is enabled. The browser of every visitor loads this script.
+   * Data sent: your install_token (visible in page HTML), and standard browser
+     headers (user agent, referrer, IP) sent by the visitor's browser.
+   * When: on every page load while the widget is enabled.
+
+2. **Plugin telemetry heartbeat** (`POST https://luluclaw.com/api/integrations/wordpress/heartbeat`)
+   * What: a daily ping confirming the plugin is installed.
+   * Data sent: plugin version, WordPress version, PHP version, your install_token
+     (if set), and a boolean indicating whether the widget is enabled. No site URL,
+     no visitor data, no page content.
+   * When: once per day, scheduled via WP Cron.
+
+3. **Knowledge Base connect** (`POST https://luluclaw.com/api/integrations/wordpress/connect`)
+   * What: when an admin clicks "Connect" in the Knowledge Base tab.
+   * Data sent: your site URL (home_url()), your install_token.
+   * When: only when the admin clicks Connect.
+
+4. **Content sync webhooks** (`POST https://luluclaw.com/api/integrations/wordpress/webhook`)
+   * What: when a post is published or updated, a small payload is sent so LuluDesk
+     can refresh its knowledge of your site.
+   * Data sent: post ID, post type, permalink, modification timestamp, post title,
+     and a short content excerpt (first 500 chars, plain text).
+   * When: only after Knowledge Base is connected, on every post save/delete.
+
+5. **Full content sync** (`POST https://luluclaw.com/api/integrations/wordpress/full-sync`)
+   * What: when an admin clicks "Sync now" or on initial connection.
+   * Data sent: the kb_source_id. LuluDesk then fetches public pages via your
+     site's REST API (`/wp-json/wp/v2/posts`, `/pages`, etc.) to index content
+     for chat answers.
+   * When: on admin click, or on initial connect.
+
+LuluDesk's terms of service: https://luluclaw.com/terms
+LuluDesk's privacy policy: https://luluclaw.com/privacy
+
+You can stop all data flow by deactivating the plugin. Uninstalling clears
+all locally-stored plugin options.
+
 == Changelog ==
+
+= 1.1.1 =
+* Fixed: readme.txt External Services disclosure now lists all endpoints and data sent (WP.org P1 requirement).
+* Fixed: HTML in translated strings now uses wp_kses() to satisfy WP.org scanner.
+* Fixed: mb_substr() now guarded with function_exists() + falls back to substr().
+* Fixed: Full-sync POST request is now HMAC-SHA256 signed, same as webhooks.
+* Fixed: Connect AJAX handler validates wp_api_key and kb_source_id before saving options.
+* Added: luludesk_render_widget() function and action hook for manual widget placement.
 
 = 1.1.0 =
 * Knowledge Base tab: connect your WP site to LuluDesk KB, sync now button, last-sync status, post type selection.
@@ -133,6 +187,9 @@ If you uncheck **Auto-inject in Footer**, the script tag is not added automatica
 * Clean uninstall: removes all plugin options and cron events.
 
 == Upgrade Notice ==
+
+= 1.1.1 =
+Bug fixes and WP.org compliance improvements. No database changes required.
 
 = 1.1.0 =
 New Knowledge Base sync feature. No database changes required. After upgrading, visit Settings → LuluDesk → Knowledge Base to connect your site.

@@ -3,7 +3,7 @@
  * Plugin Name:       LuluDesk — AI Chat with Memory
  * Plugin URI:        https://luluclaw.com/wordpress
  * Description:       AI chat widget that remembers your visitors across sessions. Zero-config install.
- * Version:           1.1.0
+ * Version:           1.1.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            LuluDesk
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LULUDESK_VERSION', '1.1.0' );
+define( 'LULUDESK_VERSION', '1.1.1' );
 define( 'LULUDESK_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LULUDESK_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'LULUDESK_PLUGIN_FILE', __FILE__ );
@@ -55,6 +55,27 @@ function luludesk_activate() {
 	add_option( 'luludesk_kb_included_post_types', array( 'page', 'post' ) );
 }
 register_activation_hook( __FILE__, 'luludesk_activate' );
+
+// ── luludesk_render_widget() — manual widget placement helper ─────────────────
+
+/**
+ * Render the LuluDesk widget script inline.
+ *
+ * Call this function directly in your theme template, or fire it via
+ * do_action( 'luludesk_render_widget' ), when Auto-inject in Footer is
+ * disabled and you need precise placement control.
+ *
+ * Example (theme template):
+ *   <?php luludesk_render_widget(); ?>
+ * or:
+ *   <?php do_action( 'luludesk_render_widget' ); ?>
+ */
+function luludesk_render_widget() {
+	if ( class_exists( 'LuluDesk_Injector' ) ) {
+		( new LuluDesk_Injector() )->inject_script();
+	}
+}
+add_action( 'luludesk_render_widget', 'luludesk_render_widget' );
 
 // ── save_post webhook (priority 99 — after most other handlers) ───────────────
 
@@ -100,8 +121,10 @@ function luludesk_on_save_post( $post_id, $post, $update ) {
 	}
 
 	$permalink     = get_permalink( $post_id );
-	$content       = wp_strip_all_tags( $post->post_content );
-	$content_excerpt = mb_substr( $content, 0, 500 );
+	$content         = wp_strip_all_tags( $post->post_content );
+	$content_excerpt = function_exists( 'mb_substr' )
+		? mb_substr( $content, 0, 500 )
+		: substr( $content, 0, 500 );
 
 	$payload = array(
 		'event'           => 'post.saved',
