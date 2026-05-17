@@ -1,4 +1,0 @@
-TODO: Replace this placeholder with an actual 772x250 PNG banner.
-Design spec: LuluDesk brand header — "AI Chat with Memory for WordPress" tagline.
-WP.org requirements: PNG or JPG, exactly 772x250 px.
-Also provide banner-1544x500.png (retina) at the same time.
