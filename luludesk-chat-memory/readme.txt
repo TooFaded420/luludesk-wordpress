@@ -116,7 +116,7 @@ If you uncheck **Auto-inject in Footer**, the script tag is not added automatica
 1. LuluDesk settings page in WP Admin → Settings → LuluDesk.
 2. Green "Connected" confirmation after entering a valid install token.
 3. The chat launcher button in the bottom-right corner of a live WordPress site.
-4. Chat widget open, showing a returning visitor conversation with memory context.
+4. Chat widget open on the live site, showing conversation starters and the assistant's first greeting. Memory persists across page loads.
 
 == External Services ==
 

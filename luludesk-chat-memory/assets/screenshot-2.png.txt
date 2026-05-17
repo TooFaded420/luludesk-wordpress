@@ -1,2 +1,0 @@
-TODO: Screenshot 2 — Test Connection success state.
-Caption: "Green 'Connected' confirmation after a valid install token is entered."
