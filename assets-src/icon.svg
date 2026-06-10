@@ -1,0 +1,18 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="LuluDesk">
+  <!-- Cream rounded square base (warm surface #FFFDF9) -->
+  <rect width="256" height="256" rx="56" fill="#FFFDF9"/>
+  <!-- Subtle sanctioned pink wash, top-left, very soft -->
+  <rect width="256" height="256" rx="56" fill="url(#wash)"/>
+  <!-- Chat bubble motif, warm pink #F2729B -->
+  <path d="M64 70 H192 a26 26 0 0 1 26 26 v52 a26 26 0 0 1 -26 26 H118 l-30 28 v-28 H64 a26 26 0 0 1 -26 -26 V96 a26 26 0 0 1 26 -26 Z" fill="#F2729B"/>
+  <!-- Three dots inside the bubble (conversation / memory), cream -->
+  <circle cx="98" cy="122" r="11" fill="#FFFDF9"/>
+  <circle cx="128" cy="122" r="11" fill="#FFFDF9"/>
+  <circle cx="158" cy="122" r="11" fill="#FFFDF9"/>
+  <defs>
+    <radialGradient id="wash" cx="0.18" cy="0.16" r="0.9">
+      <stop offset="0" stop-color="#F2729B" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#F2729B" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>

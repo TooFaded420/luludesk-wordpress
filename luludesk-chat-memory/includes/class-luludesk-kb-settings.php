@@ -6,10 +6,15 @@
  * WP Admin → Settings → LuluDesk → Knowledge Base.
  *
  * Features:
- *   - "Connect to LuluDesk Knowledge Base" button: POSTs to LuluDesk /connect,
- *     stores returned wp_api_key and kb_source_id as WP options.
- *   - "Sync now" button: triggers a full re-index via /full-sync.
- *   - "Last sync: X ago" status block.
+ *   - Credential paste form: the user generates a wp_api_key + kb_source_id in
+ *     the LuluDesk dashboard (Settings → Integrations → WordPress) and pastes
+ *     them here. We store them as WP options. We do NOT call /connect from the
+ *     WP server: that endpoint is Clerk-session-gated and cannot be reached
+ *     server-to-server from WordPress.
+ *   - "Run a full sync" link to the LuluDesk dashboard. Full sync is triggered
+ *     from the dashboard (also Clerk-gated); incremental save_post/delete
+ *     webhooks keep the KB current automatically thereafter.
+ *   - "Last update sent: X ago" status block (last outgoing webhook).
  *   - Post type checkboxes (pulled from public post types).
  *   - Banner when WP REST API appears disabled.
  *
@@ -33,18 +38,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class LuluDesk_KB_Settings {
 
 	/**
-	 * LuluDesk connect endpoint.
+	 * LuluDesk dashboard URL where the user generates KB credentials and runs a
+	 * full sync. Both of those actions are Clerk-session-gated and therefore
+	 * happen in the dashboard, not from the WP server.
 	 *
 	 * @var string
 	 */
-	const CONNECT_ENDPOINT = 'https://luluclaw.com/api/integrations/wordpress/connect';
-
-	/**
-	 * LuluDesk full-sync endpoint.
-	 *
-	 * @var string
-	 */
-	const FULL_SYNC_ENDPOINT = 'https://luluclaw.com/api/integrations/wordpress/full-sync';
+	const DASHBOARD_URL = 'https://luluclaw.com/app?tab=integrations';
 
 	/**
 	 * Constructor — register hooks.
@@ -52,8 +52,7 @@ class LuluDesk_KB_Settings {
 	public function __construct() {
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
-		add_action( 'wp_ajax_luludesk_kb_connect', array( $this, 'ajax_connect' ) );
-		add_action( 'wp_ajax_luludesk_kb_sync', array( $this, 'ajax_sync' ) );
+		add_action( 'wp_ajax_luludesk_kb_save_credentials', array( $this, 'ajax_save_credentials' ) );
 		add_action( 'wp_ajax_luludesk_kb_check_rest', array( $this, 'ajax_check_rest' ) );
 	}
 
@@ -118,142 +117,60 @@ class LuluDesk_KB_Settings {
 				'connected'    => ! empty( get_option( 'luludesk_wp_api_key', '' ) ),
 				'kb_source_id' => get_option( 'luludesk_kb_source_id', '' ),
 				'i18n'         => array(
-					'connecting'   => __( 'Connecting…', 'luludesk-chat-memory' ),
-					'connect_ok'   => __( 'Connected! Save your API key — it will not be shown again.', 'luludesk-chat-memory' ),
-					'connect_fail' => __( 'Connection failed. Check your site URL and try again.', 'luludesk-chat-memory' ),
-					'syncing'      => __( 'Syncing…', 'luludesk-chat-memory' ),
-					'sync_ok'      => __( 'Sync complete.', 'luludesk-chat-memory' ),
-					'sync_fail'    => __( 'Sync failed. Check your connection and try again.', 'luludesk-chat-memory' ),
+					'saving'      => __( 'Saving…', 'luludesk-chat-memory' ),
+					'save_ok'     => __( 'Credentials saved. Your site is now connected.', 'luludesk-chat-memory' ),
+					'save_fail'   => __( 'Could not save credentials. Check the values and try again.', 'luludesk-chat-memory' ),
+					'invalid'     => __( 'Both the API key and Source ID are required.', 'luludesk-chat-memory' ),
 				),
 			)
 		);
 	}
 
 	/**
-	 * AJAX: POST to LuluDesk /connect and store returned credentials.
+	 * AJAX: store the wp_api_key + kb_source_id the user pasted from the
+	 * LuluDesk dashboard.
+	 *
+	 * IMPORTANT — why this is a paste form and not a server-to-server call:
+	 *   The LuluDesk /connect endpoint is Clerk-session-gated and requires a
+	 *   workspace_id that only the authenticated dashboard user has. A WP server
+	 *   cannot authenticate to it. So credentials are generated in the dashboard
+	 *   and pasted here. These two values are all the webhook signer needs
+	 *   (the wp_api_key is the HMAC key; the kb_source_id identifies the source).
+	 *
+	 * The wp_api_key is stored plain — WP has no native encryption API (same as
+	 * install tokens, Stripe keys, etc. in popular WP plugins).
 	 */
-	public function ajax_connect() {
+	public function ajax_save_credentials() {
 		check_ajax_referer( 'luludesk_kb_action', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( array( 'message' => 'Unauthorized.' ), 403 );
 		}
 
-		$install_token = get_option( 'luludesk_install_token', '' );
-		$wp_site_url   = home_url();
+		$wp_api_key   = isset( $_POST['wp_api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['wp_api_key'] ) ) : '';
+		$kb_source_id = isset( $_POST['kb_source_id'] ) ? sanitize_text_field( wp_unslash( $_POST['kb_source_id'] ) ) : '';
 
-		$payload = array(
-			'wp_site_url'   => $wp_site_url,
-			'install_token' => $install_token,
-		);
-
-		$response = wp_remote_post(
-			self::CONNECT_ENDPOINT,
-			array(
-				'timeout' => 15,
-				'headers' => array( 'Content-Type' => 'application/json' ),
-				'body'    => wp_json_encode( $payload ),
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			wp_send_json_error( array( 'message' => $response->get_error_message() ) );
+		if ( '' === $wp_api_key || '' === $kb_source_id ) {
+			wp_send_json_error( array( 'message' => __( 'Both the API key and Source ID are required.', 'luludesk-chat-memory' ) ) );
 		}
 
-		$code = (int) wp_remote_retrieve_response_code( $response );
-		$body = wp_remote_retrieve_body( $response );
-		$data = json_decode( $body, true );
-
-		if ( $code < 200 || $code >= 300 ) {
-			$msg = is_array( $data ) && isset( $data['message'] ) ? $data['message'] : 'HTTP ' . $code;
-			wp_send_json_error( array( 'message' => $msg, 'code' => $code ) );
+		// Validate formats issued by the backend:
+		//   wp_api_key   = "wpk_" + 64 hex chars (32 random bytes).
+		//   kb_source_id = a UUID (Postgres uuid column).
+		if ( ! preg_match( '/^wpk_[a-f0-9]{64}$/', $wp_api_key ) ) {
+			wp_send_json_error( array( 'message' => __( 'API key format looks wrong. Expected: wpk_ followed by 64 hex characters.', 'luludesk-chat-memory' ) ) );
 		}
-
-		// Store credentials.
-		// wp_api_key is stored plain — WP has no native encryption API.
-		$wp_api_key      = is_array( $data ) && isset( $data['wp_api_key'] ) ? sanitize_text_field( $data['wp_api_key'] ) : '';
-		$kb_source_id    = is_array( $data ) && isset( $data['kb_source_id'] ) ? sanitize_text_field( $data['kb_source_id'] ) : '';
-		$plugin_config_url = is_array( $data ) && isset( $data['plugin_config_url'] ) ? esc_url_raw( $data['plugin_config_url'] ) : '';
-
-		if ( empty( $wp_api_key ) || empty( $kb_source_id ) ) {
-			wp_send_json_error(
-				array( 'message' => __( 'LuluDesk returned an invalid response. Please try again or contact support.', 'luludesk-chat-memory' ) ),
-				500
-			);
-			return;
+		if ( ! preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $kb_source_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Source ID format looks wrong. Expected a UUID.', 'luludesk-chat-memory' ) ) );
 		}
 
 		update_option( 'luludesk_wp_api_key', $wp_api_key );
 		update_option( 'luludesk_kb_source_id', $kb_source_id );
 		update_option( 'luludesk_kb_connected_at', time() );
 
-		// Update post types preference if user saved the form before connecting.
-		$selected_types = get_option( 'luludesk_kb_included_post_types', array( 'page', 'post' ) );
-		update_option( 'luludesk_kb_included_post_types', $selected_types );
-
 		wp_send_json_success(
 			array(
-				'wp_api_key'       => $wp_api_key,
-				'kb_source_id'     => $kb_source_id,
-				'plugin_config_url' => $plugin_config_url,
-				'webhook_url'      => is_array( $data ) && isset( $data['webhook_url'] ) ? $data['webhook_url'] : '',
-			)
-		);
-	}
-
-	/**
-	 * AJAX: trigger full sync via LuluDesk /full-sync.
-	 */
-	public function ajax_sync() {
-		check_ajax_referer( 'luludesk_kb_action', 'nonce' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => 'Unauthorized.' ), 403 );
-		}
-
-		$kb_source_id = get_option( 'luludesk_kb_source_id', '' );
-		if ( empty( $kb_source_id ) ) {
-			wp_send_json_error( array( 'message' => 'Not connected to LuluDesk Knowledge Base.' ) );
-		}
-
-		$wp_api_key = get_option( 'luludesk_wp_api_key', '' );
-		$webhook    = new LuluDesk_Webhook( $wp_api_key, $kb_source_id );
-		$timestamp  = time();
-		$body_json  = wp_json_encode( array( 'kb_source_id' => $kb_source_id ) );
-		$signature  = $webhook->sign( $timestamp, $body_json );
-
-		$response = wp_remote_post(
-			self::FULL_SYNC_ENDPOINT,
-			array(
-				'timeout' => 30,
-				'headers' => array(
-					'Content-Type'           => 'application/json',
-					'X-LuluDesk-Signature'   => $signature,
-					'X-LuluDesk-Timestamp'   => (string) $timestamp,
-				),
-				'body'    => $body_json,
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			wp_send_json_error( array( 'message' => $response->get_error_message() ) );
-		}
-
-		$code = (int) wp_remote_retrieve_response_code( $response );
-		$body = wp_remote_retrieve_body( $response );
-		$data = json_decode( $body, true );
-
-		if ( $code < 200 || $code >= 300 ) {
-			$msg = is_array( $data ) && isset( $data['message'] ) ? $data['message'] : 'HTTP ' . $code;
-			wp_send_json_error( array( 'message' => $msg ) );
-		}
-
-		update_option( 'luludesk_kb_last_synced_at', time() );
-
-		wp_send_json_success(
-			array(
-				'pages_synced'    => is_array( $data ) ? ( $data['pages_synced'] ?? 0 ) : 0,
-				'chunks_upserted' => is_array( $data ) ? ( $data['chunks_upserted'] ?? 0 ) : 0,
+				'kb_source_id' => $kb_source_id,
 			)
 		);
 	}
@@ -302,15 +219,18 @@ class LuluDesk_KB_Settings {
 		$kb_source_id = get_option( 'luludesk_kb_source_id', '' );
 		$connected    = ! empty( $api_key ) && ! empty( $kb_source_id );
 
-		$last_synced_at = get_option( 'luludesk_kb_last_synced_at', '' );
-		if ( $last_synced_at ) {
-			$last_sync_label = sprintf(
+		// Last update sent = the most recent outgoing webhook (save/delete).
+		// Incremental webhooks are the plugin's job; full sync happens in the
+		// dashboard, so we surface "last update sent" rather than "last sync".
+		$last_update_at = get_option( 'luludesk_kb_last_update_sent_at', '' );
+		if ( $last_update_at ) {
+			$last_update_label = sprintf(
 				/* translators: %s: human-readable time difference */
 				__( '%s ago', 'luludesk-chat-memory' ),
-				human_time_diff( (int) $last_synced_at, time() )
+				human_time_diff( (int) $last_update_at, time() )
 			);
 		} else {
-			$last_sync_label = __( 'Never', 'luludesk-chat-memory' );
+			$last_update_label = __( 'No updates sent yet', 'luludesk-chat-memory' );
 		}
 
 		$included_types = get_option( 'luludesk_kb_included_post_types', array( 'page', 'post' ) );
@@ -346,7 +266,7 @@ class LuluDesk_KB_Settings {
 					<?php
 					echo wp_kses(
 						sprintf(
-							/* translators: %s: KB source ID */
+							/* translators: %s: kb source id */
 							__( 'Connected to LuluDesk Knowledge Base. Source ID: %s', 'luludesk-chat-memory' ),
 							'<code>' . esc_html( $kb_source_id ) . '</code>'
 						),
@@ -357,22 +277,72 @@ class LuluDesk_KB_Settings {
 			</div>
 
 			<p>
-				<strong><?php esc_html_e( 'Last sync:', 'luludesk-chat-memory' ); ?></strong>
-				<span id="luludesk-last-sync-label"><?php echo esc_html( $last_sync_label ); ?></span>
+				<strong><?php esc_html_e( 'Last update sent:', 'luludesk-chat-memory' ); ?></strong>
+				<span id="luludesk-last-update-label"><?php echo esc_html( $last_update_label ); ?></span>
 			</p>
 
-			<p>
-				<button type="button" id="luludesk-sync-btn" class="button button-primary">
-					<?php esc_html_e( 'Sync now', 'luludesk-chat-memory' ); ?>
-				</button>
-				<span id="luludesk-sync-result" style="margin-left:8px;font-weight:600;"></span>
+			<p class="description">
+				<?php
+				echo wp_kses(
+					sprintf(
+						/* translators: %s: dashboard link */
+						__( 'New and updated posts sync automatically. To re-index all existing content, run a full sync from your %s.', 'luludesk-chat-memory' ),
+						'<a href="' . esc_url( self::DASHBOARD_URL ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'LuluDesk dashboard', 'luludesk-chat-memory' ) . '</a>'
+					),
+					array( 'a' => array( 'href' => true, 'target' => true, 'rel' => true ) )
+				);
+				?>
 			</p>
 
 			<?php else : ?>
 
 			<p>
-				<button type="button" id="luludesk-connect-btn" class="button button-primary">
-					<?php esc_html_e( 'Connect to LuluDesk Knowledge Base', 'luludesk-chat-memory' ); ?>
+				<?php
+				echo wp_kses(
+					sprintf(
+						/* translators: %s: dashboard link */
+						__( 'Generate your connection credentials in the %s (Integrations → Connect WordPress site), then paste them below.', 'luludesk-chat-memory' ),
+						'<a href="' . esc_url( self::DASHBOARD_URL ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'LuluDesk dashboard', 'luludesk-chat-memory' ) . '</a>'
+					),
+					array( 'a' => array( 'href' => true, 'target' => true, 'rel' => true ) )
+				);
+				?>
+			</p>
+
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row">
+						<label for="luludesk-kb-api-key"><?php esc_html_e( 'API Key', 'luludesk-chat-memory' ); ?></label>
+					</th>
+					<td>
+						<input
+							type="text"
+							id="luludesk-kb-api-key"
+							class="regular-text"
+							autocomplete="off"
+							placeholder="wpk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+						/>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">
+						<label for="luludesk-kb-source-id"><?php esc_html_e( 'Source ID', 'luludesk-chat-memory' ); ?></label>
+					</th>
+					<td>
+						<input
+							type="text"
+							id="luludesk-kb-source-id"
+							class="regular-text"
+							autocomplete="off"
+							placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+						/>
+					</td>
+				</tr>
+			</table>
+
+			<p>
+				<button type="button" id="luludesk-save-credentials-btn" class="button button-primary">
+					<?php esc_html_e( 'Save connection', 'luludesk-chat-memory' ); ?>
 				</button>
 				<span id="luludesk-connect-result" style="margin-left:8px;font-weight:600;"></span>
 			</p>

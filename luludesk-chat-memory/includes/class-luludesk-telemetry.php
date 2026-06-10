@@ -67,9 +67,12 @@ class LuluDesk_Telemetry {
 			'widget_enabled' => '1' === get_option( 'luludesk_widget_enabled', '1' ),
 		);
 
-		// Include token only when set — allows server-side workspace correlation.
+		// Include the install token only when set — lets the server attribute
+		// this heartbeat to a workspace. The server expects the field name
+		// `install_token` (see /api/integrations/wordpress/heartbeat). Do NOT
+		// rename without updating the backend contract.
 		if ( '' !== $token ) {
-			$payload['token'] = $token;
+			$payload['install_token'] = $token;
 		}
 
 		$response = wp_remote_post(
@@ -89,6 +92,20 @@ class LuluDesk_Telemetry {
 		}
 
 		update_option( 'luludesk_last_heartbeat', time() );
+
+		// Surface an "update available" hint when the server reports a newer
+		// published plugin version. Stored as an option for the settings screen.
+		// The server returns { plugin_latest_version: "x.y.z" }.
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		if ( 200 === $code ) {
+			$body = json_decode( wp_remote_retrieve_body( $response ), true );
+			if ( is_array( $body ) && ! empty( $body['plugin_latest_version'] ) ) {
+				update_option(
+					'luludesk_latest_version',
+					sanitize_text_field( $body['plugin_latest_version'] )
+				);
+			}
+		}
 	}
 
 	/**

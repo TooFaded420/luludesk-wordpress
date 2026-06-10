@@ -1,0 +1,27 @@
+<svg width="772" height="250" viewBox="0 0 772 250" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="LuluDesk — AI Chat with Memory">
+  <!-- Warm cream base -->
+  <rect width="772" height="250" fill="#FFFDF9"/>
+  <!-- Sanctioned soft pink wash from the right -->
+  <rect width="772" height="250" fill="url(#wash)"/>
+  <!-- Thin brand accent bar along the top (matches docs page top accent) -->
+  <rect width="772" height="6" fill="#F2729B"/>
+
+  <!-- Chat bubble mark on the left -->
+  <g transform="translate(56 84)">
+    <path d="M0 8 H96 a22 22 0 0 1 22 22 v40 a22 22 0 0 1 -22 22 H44 l-24 22 v-22 H0 a22 22 0 0 1 -22 -22 V30 a22 22 0 0 1 22 -22 Z" transform="translate(22 0)" fill="#F2729B"/>
+    <circle cx="50" cy="50" r="8.5" fill="#FFFDF9"/>
+    <circle cx="74" cy="50" r="8.5" fill="#FFFDF9"/>
+    <circle cx="98" cy="50" r="8.5" fill="#FFFDF9"/>
+  </g>
+
+  <!-- Wordmark + tagline. Heavy weight, tight tracking per DESIGN.md Satoshi spec. -->
+  <text x="210" y="120" font-family="'Satoshi','Segoe UI',Arial,sans-serif" font-size="62" font-weight="900" letter-spacing="-2" fill="#1A1A1A">LuluDesk</text>
+  <text x="212" y="162" font-family="'Satoshi','Segoe UI',Arial,sans-serif" font-size="24" font-weight="600" letter-spacing="-0.3" fill="#7A3E56">AI chat with memory for WordPress</text>
+
+  <defs>
+    <radialGradient id="wash" cx="0.92" cy="0.2" r="0.85">
+      <stop offset="0" stop-color="#F2729B" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#F2729B" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>

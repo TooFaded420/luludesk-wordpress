@@ -20,6 +20,13 @@ $luludesk_options = array(
 	'luludesk_allowed_pages',
 	'luludesk_allowed_urls',
 	'luludesk_last_heartbeat',
+	'luludesk_latest_version',
+	// Knowledge Base (v1.1.0+).
+	'luludesk_wp_api_key',
+	'luludesk_kb_source_id',
+	'luludesk_kb_included_post_types',
+	'luludesk_kb_connected_at',
+	'luludesk_kb_last_update_sent_at',
 );
 
 foreach ( $luludesk_options as $option ) {

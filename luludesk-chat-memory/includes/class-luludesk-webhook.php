@@ -36,13 +36,6 @@ class LuluDesk_Webhook {
 	const WEBHOOK_ENDPOINT = 'https://luluclaw.com/api/integrations/wordpress/webhook';
 
 	/**
-	 * LuluDesk full-sync endpoint URL.
-	 *
-	 * @var string
-	 */
-	const FULL_SYNC_ENDPOINT = 'https://luluclaw.com/api/integrations/wordpress/full-sync';
-
-	/**
 	 * The wp_api_key stored in options.
 	 * Plain-text for v1 (WP has no native encryption API).
 	 *
@@ -128,6 +121,11 @@ class LuluDesk_Webhook {
 			error_log( '[LuluDesk] Webhook dispatch error: ' . $response->get_error_message() );
 			return false;
 		}
+
+		// Record that an update was sent. Because the request is non-blocking
+		// (blocking => false) we never see the response, so this reflects the
+		// dispatch time, not a confirmed server receipt.
+		update_option( 'luludesk_kb_last_update_sent_at', time() );
 
 		return true;
 	}

@@ -3,7 +3,7 @@
  * Plugin Name:       LuluDesk — AI Chat with Memory
  * Plugin URI:        https://luluclaw.com/wordpress
  * Description:       AI chat widget that remembers your visitors across sessions. Zero-config install.
- * Version:           1.1.1
+ * Version:           1.1.2
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            LuluDesk
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LULUDESK_VERSION', '1.1.1' );
+define( 'LULUDESK_VERSION', '1.1.2' );
 define( 'LULUDESK_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LULUDESK_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'LULUDESK_PLUGIN_FILE', __FILE__ );
@@ -120,7 +120,14 @@ function luludesk_on_save_post( $post_id, $post, $update ) {
 		return;
 	}
 
-	$permalink     = get_permalink( $post_id );
+	$permalink = get_permalink( $post_id );
+
+	// The server validates `permalink` as a URL and 400s on an empty string,
+	// so skip dispatch entirely when WP cannot resolve a permalink.
+	if ( ! $permalink ) {
+		return;
+	}
+
 	$content         = wp_strip_all_tags( $post->post_content );
 	$content_excerpt = function_exists( 'mb_substr' )
 		? mb_substr( $content, 0, 500 )
@@ -130,7 +137,7 @@ function luludesk_on_save_post( $post_id, $post, $update ) {
 		'event'           => 'post.saved',
 		'post_id'         => $post_id,
 		'post_type'       => $post->post_type,
-		'permalink'       => $permalink ? $permalink : '',
+		'permalink'       => $permalink,
 		'modified_gmt'    => $post->post_modified_gmt,
 		'title'           => $post->post_title,
 		'content_excerpt' => $content_excerpt,
@@ -176,11 +183,17 @@ function luludesk_on_before_delete_post( $post_id, $post ) {
 
 	$permalink = get_permalink( $post_id );
 
+	// The server validates `permalink` as a URL and 400s on an empty string,
+	// so skip dispatch entirely when WP cannot resolve a permalink.
+	if ( ! $permalink ) {
+		return;
+	}
+
 	$payload = array(
 		'event'     => 'post.deleted',
 		'post_id'   => $post_id,
 		'post_type' => $post->post_type,
-		'permalink' => $permalink ? $permalink : '',
+		'permalink' => $permalink,
 	);
 
 	$webhook->dispatch( $payload );

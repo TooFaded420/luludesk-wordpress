@@ -3,7 +3,7 @@ Contributors: luludesk
 Tags: ai-chat, chatbot, ai-assistant, customer-support, knowledge-base
 Requires at least: 6.0
 Tested up to: 6.5
-Stable tag: 1.1.1
+Stable tag: 1.1.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -137,24 +137,22 @@ functionality. The following data is sent to LuluDesk's servers:
      no visitor data, no page content.
    * When: once per day, scheduled via WP Cron.
 
-3. **Knowledge Base connect** (`POST https://luluclaw.com/api/integrations/wordpress/connect`)
-   * What: when an admin clicks "Connect" in the Knowledge Base tab.
-   * Data sent: your site URL (home_url()), your install_token.
-   * When: only when the admin clicks Connect.
-
-4. **Content sync webhooks** (`POST https://luluclaw.com/api/integrations/wordpress/webhook`)
-   * What: when a post is published or updated, a small payload is sent so LuluDesk
-     can refresh its knowledge of your site.
+3. **Content sync webhooks** (`POST https://luluclaw.com/api/integrations/wordpress/webhook`)
+   * What: once the Knowledge Base is connected, publishing, updating, or deleting
+     a post of an included type sends a small signed payload so LuluDesk can
+     refresh its knowledge of your site.
    * Data sent: post ID, post type, permalink, modification timestamp, post title,
-     and a short content excerpt (first 500 chars, plain text).
+     and a short content excerpt (first 500 chars, plain text), signed with
+     HMAC-SHA256 using your connection key.
    * When: only after Knowledge Base is connected, on every post save/delete.
 
-5. **Full content sync** (`POST https://luluclaw.com/api/integrations/wordpress/full-sync`)
-   * What: when an admin clicks "Sync now" or on initial connection.
-   * Data sent: the kb_source_id. LuluDesk then fetches public pages via your
-     site's REST API (`/wp-json/wp/v2/posts`, `/pages`, etc.) to index content
-     for chat answers.
-   * When: on admin click, or on initial connect.
+Note on connecting the Knowledge Base: you generate your connection credentials
+(an API key and Source ID) inside the LuluDesk dashboard and paste them into the
+plugin's Knowledge Base tab. The plugin does NOT send your site URL or call a
+connect endpoint from your server — connecting and running a full re-index both
+happen in the dashboard (they require an authenticated dashboard session that a
+WordPress server cannot supply). After the initial connection, the incremental
+webhook above keeps your content in sync automatically.
 
 LuluDesk's terms of service: https://luluclaw.com/terms
 LuluDesk's privacy policy: https://luluclaw.com/privacy
@@ -163,6 +161,13 @@ You can stop all data flow by deactivating the plugin. Uninstalling clears
 all locally-stored plugin options.
 
 == Changelog ==
+
+= 1.1.2 =
+* Fixed: daily heartbeat now sends the install token under the field name the LuluDesk server expects (`install_token`), so heartbeats are correctly attributed to your workspace.
+* Fixed: Knowledge Base connection now uses a paste-credentials flow — generate your API key and Source ID in the LuluDesk dashboard, then paste them into the plugin. (The previous in-plugin "Connect" and "Sync now" buttons called dashboard-authenticated endpoints that a WordPress server cannot reach.)
+* Fixed: post save/delete webhooks are no longer dispatched when WordPress cannot resolve a permalink, avoiding a server-side validation rejection.
+* Added: "update available" awareness — the heartbeat now reads the latest published plugin version reported by the server.
+* Housekeeping: uninstall now removes all Knowledge Base options; removed an unused endpoint constant; merged the WP.org submission-blocker fixes from 1.1.1.
 
 = 1.1.1 =
 * Fixed: readme.txt External Services disclosure now lists all endpoints and data sent (WP.org P1 requirement).
@@ -187,6 +192,9 @@ all locally-stored plugin options.
 * Clean uninstall: removes all plugin options and cron events.
 
 == Upgrade Notice ==
+
+= 1.1.2 =
+Contract sync with the live LuluDesk backend (heartbeat attribution, Knowledge Base connection, webhook permalink handling) plus the 1.1.1 WP.org compliance fixes. No database changes required. If you use the Knowledge Base, re-connect from the new paste-credentials form under Settings → LuluDesk → Knowledge Base.
 
 = 1.1.1 =
 Bug fixes and WP.org compliance improvements. No database changes required.
