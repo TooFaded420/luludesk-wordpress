@@ -56,6 +56,11 @@ function filter(src) {
   if (EXCLUDE_NAMES.has(name)) return false;
   // Drop the .txt asset placeholders (e.g. banner-772x250.png.txt, screenshot-*.txt).
   if (name.endsWith(".txt") && name !== "readme.txt") return false;
+  // Directory-LISTING art (banners/icons/screenshots) belongs in the
+  // WordPress.org SVN /assets area, not the install zip — customers should
+  // not download ~340KB of marketing PNGs with the plugin. Runtime assets
+  // (admin.js, kb-admin.js) stay.
+  if (/^(banner-|icon-|screenshot-).*\.png$/.test(name)) return false;
   return true;
 }
 
